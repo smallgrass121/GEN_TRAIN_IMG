@@ -1,0 +1,2 @@
+# GEN_TRAIN_IMG
+yolo
