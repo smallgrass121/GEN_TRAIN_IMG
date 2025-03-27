@@ -1,0 +1,40 @@
+# === Python cache files ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.log
+*.tmp
+
+# === Virtual environments ===
+.venv/
+env/
+venv/
+ENV/
+*.egg-info/
+dist/
+build/
+
+# === System files ===
+.DS_Store
+Thumbs.db
+
+# === IDE/editor settings ===
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# === Jupyter Notebooks Checkpoints ===
+.ipynb_checkpoints/
+
+# === Output folders for augmented data ===
+output_img/
+output_label/
+# augmented_dataset/
+# *.jpg
+# *.png
+
+# === Temporary test/output files ===
+test_*.*
+debug_*.*
