@@ -34,45 +34,93 @@ AUG_LEVELS = {
     "perspective_warp": {1: (10, 20), 2: (25, 35), 3: (40, 50)},
     "resolution_scale": {1: (0.45, 0.75), 2: (0.28, 0.4), 3: (0.12, 0.22)},
     "hue_shift": {1: (5, 15), 2: (16, 30), 3: (31, 45)},
-    "white_balance_shift": {
-        1: (1.02, 0.95),
-        2: (0.95, 0.8),
-        3: (0.8, 0.55)
-    },
-    "shrink_and_embed": {1: (0.15, 0.18), 2: (0.19, 0.22), 3: (0.23, 0.3)},
-    "random_rotate": {1: (5, 15), 2: (16, 30), 3: (31, 60)},
-    "overlay_ghost": {1: ((0.3, 10), (0.35, 15)), 2: ((0.4, 20), (0.5, 30)), 3: ((0.6, 40), (0.7, 50))},
+    "white_balance_shift": {1: (0.94, 0.9), 2: (0.85, 0.75), 3: (0.7, 0.4)},
+    "shrink_and_embed": {1: (0.23, 0.3), 2: (0.19, 0.22), 3: (0.15, 0.18)},
+    "random_rotate": {1: (5, 60), 2: (61, 120), 3: (121, 180)},
+    "overlay_ghost": {1: ((0.3, 0.35), (10, 15)), 2: ((0.4, 0.5), (20, 30)), 3: ((0.6, 0.7), (40, 50))},
 }
+
+def get_aug_param(key, level):
+    """
+    從 AUG_LEVELS 中取得指定 key 與強度等級 level 的對應參數值
+
+    支援以下資料格式：
+    1. tuple (float/int, float/int)：
+       - 若為一般範圍（如 brightness）：回傳區間內隨機浮點數
+       - 若 key 為特殊項目（如 barrel_distortion, white_balance_shift, overlay_ghost）：
+         依 key 回傳對應格式 tuple 或 tuple of tuples
+    2. tuple of tuples：從多組複合參數中隨機取一組
+    3. list：從列表中隨機取一個值
+    4. 其他：回傳 None
+    """
+    val_range = AUG_LEVELS.get(key, {}).get(level)
+
+    if isinstance(val_range, tuple):
+        # 如果是 (float, float)：代表要產生隨機浮點數
+        if all(isinstance(v, (int, float)) for v in val_range):
+
+            # 特例處理：barrel_distortion 需要回傳 (k1, k2)
+            if key == "barrel_distortion":
+                return (np.random.uniform(*val_range), np.random.uniform(*val_range))
+
+            # 特例處理：white_balance_shift 需回傳 (r_shift, g_shift, b_shift)
+            elif key == "white_balance_shift":
+                return (
+                    np.random.uniform(*val_range),
+                    np.random.uniform(*val_range),
+                    np.random.uniform(*val_range)
+                )
+
+            # 特例處理：overlay_ghost 要回傳 (alpha, (x, y)) 格式
+            elif key == "overlay_ghost":
+                alpha = np.random.uniform(*val_range)
+                offset = (np.random.uniform(*val_range), np.random.uniform(*val_range))
+                print("alpha="+alpha)
+                print("offset="+offset)
+                return (alpha, offset)
+
+            # 一般情況：回傳單一隨機值（float 或 int）
+            else:
+                return np.random.uniform(*val_range)
+
+        # 若是 tuple of tuples：例如 ((0.1, 10), (0.2, 20))
+        elif all(isinstance(v, tuple) for v in val_range):
+            return val_range[np.random.randint(0, len(val_range))]
+
+    # 若為 list：從中選一個
+    elif isinstance(val_range, list):
+        return val_range[np.random.randint(0, len(val_range))]
+
+    # 防呆（不太會進來）：tuple 中第一層即是 tuple
+    elif isinstance(val_range, tuple) and isinstance(val_range[0], tuple):
+        return val_range[np.random.randint(0, len(val_range))]
+
+    return None
 
 # def get_aug_param(key, level):
 #     val_range = AUG_LEVELS.get(key, {}).get(level)
-#     if isinstance(val_range, tuple) and isinstance(val_range[0], (int, float)):
-#         return np.random.uniform(*val_range)
+#     if isinstance(val_range, tuple):
+#         # print(val_range)
+#         if all(isinstance(v, (int, float)) for v in val_range):
+#             # 若是浮點範圍，回傳隨機值或 tuple 形式
+#             if key == "barrel_distortion":
+#                 return (np.random.uniform(*val_range), np.random.uniform(*val_range))
+#             elif key == "white_balance_shift":
+#                 return (np.random.uniform(*val_range), np.random.uniform(*val_range), np.random.uniform(*val_range))
+#             elif key == "overlay_ghost":
+#                 print(key + " = "+ np.random.uniform(*val_range) +","+np.random.uniform(*val_range))
+#                 return (np.random.uniform(*val_range), (np.random.uniform(*val_range), np.random.uniform(*val_range)))
+#             else:
+#                 return np.random.uniform(*val_range)
+#         elif all(isinstance(v, tuple) for v in val_range):
+#             return val_range[np.random.randint(0, len(val_range))]
 #     elif isinstance(val_range, list):
 #         return val_range[np.random.randint(0, len(val_range))]
 #     elif isinstance(val_range, tuple) and isinstance(val_range[0], tuple):
 #         pair = val_range[np.random.randint(0, len(val_range))]
 #         return pair
-#     return val_range
-
-def get_aug_param(key, level):
-    val_range = AUG_LEVELS.get(key, {}).get(level)
-    if isinstance(val_range, tuple):
-        if all(isinstance(v, (int, float)) for v in val_range):
-            # 若是浮點範圍，回傳隨機值或 tuple 形式
-            if key == "barrel_distortion":
-                return (np.random.uniform(*val_range), np.random.uniform(*val_range))
-            # elif key == "perspective_warp":
-            #     return np.random.uniform(*val_range), 5
-            return np.random.uniform(*val_range)
-        elif all(isinstance(v, tuple) for v in val_range):
-            return val_range[np.random.randint(0, len(val_range))]
-    elif isinstance(val_range, list):
-        return val_range[np.random.randint(0, len(val_range))]
-    elif isinstance(val_range, tuple) and isinstance(val_range[0], tuple):
-        pair = val_range[np.random.randint(0, len(val_range))]
-        return pair
-    return val_range
+    
+#     return None
 
 def adjust_brightness(image, factor=1.2):
     """
@@ -195,11 +243,12 @@ def hue_shift(image, shift_val=25):
     img_rgb = cv2.cvtColor(img_hsv, cv2.COLOR_HSV2RGB)
     return Image.fromarray(img_rgb)
 
-def white_balance_shift(image, r_shift=1.05, g_shift=0.95, b_shift=0.9):
+def white_balance_shift(image, rgb=(1.05, 0.95, 0.9)):
     """
     白平衡偏移（RGB 通道比例調整）
-    參數：r_shift, g_shift, b_shift（float）各通道的增益係數；建議值域 0.8 ~ 1.2
+    參數：rgb 對應到 r_shift, g_shift, b_shift（float）各通道的增益係數；建議值域 0.8 ~ 1.2
     """
+    r_shift, g_shift, b_shift = rgb
     arr = np.array(image).astype(np.float32)
     arr[..., 0] *= r_shift
     arr[..., 1] *= g_shift
@@ -284,6 +333,7 @@ def random_rotate(image, degree=15):
     參數：degree（int）最大旋轉角度（雙向 ±degree 範圍）；建議值域 5 ~ 30
     """
     angle = np.random.uniform(-degree, degree)
+    print(angle)
     return image.rotate(angle, resample=Image.BILINEAR, expand=True)
 
 def overlay_ghost(image, alpha=0.4, offset=(10, 10)):
@@ -335,7 +385,28 @@ def generate_versions(image_path):
 
             # versions[f"{base_name}_{counter}_09_hue_L{level}.jpg"] = hue_shift(img, shift_val=int(get_aug_param("hue_shift", level)))
 
-            versions[f"{base_name}_{counter}_10_white_b_L{level}.jpg"] = white_balance_shift(img, r_shift=get_aug_param("white_balance_shift", level), g_shift=get_aug_param("white_balance_shift", level), b_shift=get_aug_param("white_balance_shift", level))
+            # print(get_aug_param("white_balance_shift", level))
+            # versions[f"{base_name}_{counter}_10_white_b_L{level}.jpg"] = white_balance_shift(img, get_aug_param("white_balance_shift", level))
+
+            # versions[f"{base_name}_{counter}_11_bgreplace_L{level}.jpg"] = replace_background(img, threshold=30)
+
+            # versions[f"{base_name}_{counter}_12_shrink_L{level}.jpg"] = shrink_and_embed(img, get_aug_param("shrink_and_embed", level))
+
+            # versions[f"{base_name}_{counter}_13_rotate_L{level}.jpg"] = random_rotate(img, degree=int(get_aug_param("random_rotate", level)))
+
+
+            print(f"_{counter}_")
+            print(get_aug_param("overlay_ghost", level))
+            # # get_aug_param("overlay_ghost", level)
+            # alpha_offset = get_aug_param("overlay_ghost", level)
+            # alpha, offset = alpha_offset[0], alpha_offset[1]
+            # versions[f"{base_name}_{counter}_14_ghost_L{level}.jpg"] = overlay_ghost(
+            #     img, 
+            #     alpha=alpha, 
+            #     offset=(int(offset[0]), int(offset[1]))
+            # )
+            alpha, offset = get_aug_param("overlay_ghost", level)
+            versions[f"{base_name}_14_ghost_L{level}.jpg"] = overlay_ghost(img, alpha=alpha, offset=(int(offset), int(offset)))
 
     # for level in [1, 2, 3]:
     #     # 自動產生版本（透過擾動名稱與等級）
